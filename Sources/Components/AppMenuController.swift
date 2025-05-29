@@ -5,8 +5,8 @@
 //  Created by Mikhail Filimonov on 06.12.2021.
 //
 
+import Combine
 import Foundation
-import SwiftSignalKit
 import AppKit
 import KeyboardKey
 
@@ -85,14 +85,17 @@ final class MenuView: Control, TableViewDelegate {
             return lhs.index < rhs.index
         }
         static func == (lhs: MenuView.Entry, rhs: MenuView.Entry) -> Bool {
-            return lhs.stableId == rhs.stableId && lhs.index == rhs.index
+            return lhs.id == rhs.id && lhs.index == rhs.index
         }
         let item: ContextMenuItem?
         let index: Int
-        var stableId: AnyHashable {
-            return item?.id ?? Int64(index)
+        var id: AnyHashable {
+            let menuItem = self.item
+            let index = self.index
+            return menuItem?.id ?? Int64(index)
         }
         
+        @MainActor
         func makeItem(presentation: AppMenu.Presentation, interaction: AppMenuBasicItem.Interaction) -> TableRowItem {
             if let item = item {
                 return item.rowItem(presentation: presentation, interaction: interaction)
@@ -177,11 +180,7 @@ final class MenuView: Control, TableViewDelegate {
         })
         
         self.setFrameSize(max, min(tableView.listHeight, min(maxHeight ?? appearMode.max, screen.visibleFrame.height - 200)))
-        if presentation.colors.isDark {
-            visualView.material = .dark
-        } else {
-            visualView.material = .light
-        }
+        visualView.material = .menu
         effectiveSize = max
         
         if #available(macOS 11.0, *) {
@@ -224,8 +223,11 @@ final class MenuView: Control, TableViewDelegate {
     
     func merge(menu: ContextMenu, presentation: AppMenu.Presentation, interaction: AppMenuBasicItem.Interaction) {
         self.observation = menu.observe(\._items, options: [.new], changeHandler: { [weak self] menu, value in
-            let new = value.newValue?.compactMap { $0 as? ContextMenuItem } ?? []
-            self?.apply(current: new, presentation: presentation, interaction: interaction)
+            let capturedNewValue = value.newValue
+            Task { @MainActor in
+                let new = capturedNewValue?.compactMap { $0 as? ContextMenuItem } ?? []
+                self?.apply(current: new, presentation: presentation, interaction: interaction)
+            }
         })
         self.apply(current: menu.contextItems, presentation: presentation, interaction: interaction)
     }
@@ -312,6 +314,7 @@ final class MenuView: Control, TableViewDelegate {
     var dismissed: Bool = false
 }
 
+@MainActor
 final class AppMenuController : NSObject  {
     let menu:ContextMenu
     var parent: Window?
@@ -319,8 +322,8 @@ final class AppMenuController : NSObject  {
     private let betterInside: Bool
     private let appearMode: AppMenu.AppearMode
     
-    private var keyDisposable: Disposable?
-    private let search = MetaDisposable()
+    private var keyCancellable: AnyCancellable?
+    private var search: AnyCancellable?
     var onClose:()->Void = {}
     var onShow:()->Void = {}
     
@@ -341,7 +344,7 @@ final class AppMenuController : NSObject  {
     private var previousCopyHandler: (()->Void)? = nil
 
     private weak var parentView: NSView?
-    private let delayDisposable = MetaDisposable()
+    private var delayCancellable: AnyCancellable?
     
     
     init(_ menu: ContextMenu, presentation: AppMenu.Presentation, holder: AppMenu, betterInside: Bool, appearMode: AppMenu.AppearMode, parentView: NSView?) {
@@ -432,11 +435,13 @@ final class AppMenuController : NSObject  {
                     let s_m_point = window.convertToScreen(CGRect(origin: event.locationInWindow, size: .zero)).origin
                     let mouseInMenu = self.activeMenu?.mouseInside() == true
                     if NSPointInRect(s_m_point, s_v_rect) || mouseInMenu {
-                        delayDisposable.set(nil)
+                        delayCancellable?.cancel()
                     } else {
-                        delayDisposable.set(delaySignal(0.1).start(completed: { [weak self] in
-                            self?.closeAll()
-                        }))
+                        delayCancellable = Just(())
+                            .delay(for: .milliseconds(100), scheduler: RunLoop.main)
+                            .sink(receiveCompletion: { [weak self] _ in
+                                self?.closeAll()
+                            }, receiveValue: {})
                     }
                 }
             }
@@ -495,10 +500,12 @@ final class AppMenuController : NSObject  {
                 }
             }
             self.query += chars
-            let signal = delaySignal(0.3)
-            search.set(signal.start(completed: { [weak self] in
-                self?.query = ""
-            }))
+            let signal = delayPublisher(0.3)
+            search?.cancel()
+            search = signal
+                .sink(receiveCompletion: { [weak self] _ in
+                    self?.query = ""
+                }, receiveValue: {})
             
             searchItem(self.query)
         } else {
@@ -924,8 +931,7 @@ final class AppMenuController : NSObject  {
         self.onShow()
         self.previousCopyHandler = self.parent?.masterCopyhandler
         var skippedFirst: Bool = false
-        
-        self.keyDisposable = self.parent?.keyWindowUpdater.start(next: { [weak self] value in
+        self.keyCancellable = self.parent?.keyWindowUpdater.sink(receiveValue: { [weak self] value in
             if !value && skippedFirst {
                 let isKey = NSApp.mainWindow != nil
                 if !isKey {
@@ -952,12 +958,12 @@ final class AppMenuController : NSObject  {
     }
     
     deinit {
-        self.delayDisposable.dispose()
-        self.keyDisposable?.dispose()
+        self.delayCancellable?.cancel()
+        self.keyCancellable?.cancel()
     }
 }
 
-
+@MainActor
 public func contextMenuOnScreen()->Bool {
     for window in NSApp.windows {
         if let window = window as? Window, let _ = window.weakView {
@@ -967,7 +973,7 @@ public func contextMenuOnScreen()->Bool {
     return false
 }
 
-
+@MainActor
 public func contextOnScreen()->Window? {
     for window in NSApp.windows {
         if let window = window as? Window, let _ = window.weakView {

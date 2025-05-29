@@ -12,6 +12,7 @@ import AppKit
 
 public let kUIKitAnimationBackground = "UIKitAnimationBackground"
 
+@MainActor
 public protocol AppearanceViewProtocol {
     func updateLocalizationAndTheme(theme: PresentationTheme)
 }

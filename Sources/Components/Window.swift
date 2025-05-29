@@ -7,7 +7,7 @@
 //
 
 import Cocoa
-import SwiftSignalKit
+import Combine
 import KeyboardKey
 
 public class AppWindow : Window {
@@ -86,7 +86,8 @@ public class ObervableView: NSView {
     
 }
 
-protocol ObservableViewDelegate : class {
+@MainActor
+protocol ObservableViewDelegate : AnyObject {
     func observableView(_ view: NSView, didAddSubview: NSView)
     func observableview(_ view: NSView, willRemoveSubview: NSView)
 }
@@ -330,8 +331,12 @@ open class Window: NSWindow {
     public var onToggleFullScreen:((Bool)->Void)? = nil
     
     public var isPushToTalkEquaivalent:((NSEvent)->Bool)?
-    
-    private let visibleObserver: ValuePromise<Bool> = ValuePromise(true, ignoreRepeated: true)
+    private let visibleObserver = CurrentValueSubject<Bool, Never>(true)
+    public var visibility: AnyPublisher<Bool, Never> {
+        visibleObserver
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
 
     public var acceptFirstMouse: Bool = true
     
@@ -340,30 +345,31 @@ open class Window: NSWindow {
     }
     
     open var modalInset: CGFloat = 0
-
-    private let isKeyWindowValue: ValuePromise<Bool> = ValuePromise(false, ignoreRepeated: true)
-    public var keyWindowUpdater: Signal<Bool, NoError> {
-        return self.isKeyWindowValue.get()
+    private let isKeyWindowValueSubject = CurrentValueSubject<Bool, Never>(false)
+    public var keyWindowUpdater: AnyPublisher<Bool, Never> {
+        isKeyWindowValueSubject
+            .removeDuplicates()
+            .eraseToAnyPublisher()
+    }
+    private let isFullScreenSubject = CurrentValueSubject<Bool, Never>(false)
+    public var fullScreen: AnyPublisher<Bool, Never> {
+        isFullScreenSubject
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
     
-    private let isFullScreenValue: ValuePromise<Bool> = ValuePromise(false, ignoreRepeated: true)
-    public var fullScreen: Signal<Bool, NoError> {
-        return self.isFullScreenValue.get()
+    private let occlusionStateSubject = CurrentValueSubject<NSWindow.OcclusionState, Never>(NSWindow.OcclusionState.visible)
+    public var takeOcclusionState: AnyPublisher<NSWindow.OcclusionState, Never> {
+        occlusionStateSubject
+            .removeDuplicates()
+            .eraseToAnyPublisher()
     }
 
-    private let occlusionStateValue: ValuePromise<NSWindow.OcclusionState> = ValuePromise(NSWindow.OcclusionState.visible, ignoreRepeated: true)
-
-    public var takeOcclusionState: Signal<NSWindow.OcclusionState, NoError> {
-        return occlusionStateValue.get()
-    }
-
-    public var visibility: Signal<Bool, NoError> {
-        return visibleObserver.get()
-    }
+    
     
     open override func setIsVisible(_ flag: Bool) {
         super.setIsVisible(flag)
-        self.visibleObserver.set(flag)
+        self.visibleObserver.send(flag)
     }
     
     public func set(responder:@escaping() -> NSResponder?, with object:NSObject?, priority:HandlerPriority, ignoreKeys: [KeyboardKey] = []) {
@@ -606,12 +612,12 @@ open class Window: NSWindow {
     
     open override func makeKeyAndOrderFront(_ sender: Any?) {
         super.makeKeyAndOrderFront(sender)
-        self.visibleObserver.set(self.isVisible)
+        self.visibleObserver.send(self.isVisible)
     }
     open override func orderOut(_ sender: Any?) {
         super.orderOut(sender)
         orderOutHandler?()
-        self.visibleObserver.set(self.isVisible)
+        self.visibleObserver.send(self.isVisible)
     }
     
     public func enumerateAllSubviews(callback: (NSView) -> Void) {
@@ -638,7 +644,7 @@ open class Window: NSWindow {
         } else {
             super.close()
         }
-        self.visibleObserver.set(self.isVisible)
+        self.visibleObserver.send(self.isVisible)
     }
     
     private func scrollDeltaXAfterInvertion(_ value: CGFloat) -> CGFloat {
@@ -953,7 +959,7 @@ open class Window: NSWindow {
         } else {
             invokeFullScreen(nil)
             DispatchQueue.main.async {
-                self.isFullScreenValue.set(newValue)
+                self.isFullScreenSubject.send(newValue)
             }
         }
     }
@@ -988,12 +994,11 @@ open class Window: NSWindow {
 
 
     @objc open func windowDidBecomeKey() {
-        isKeyWindowValue.set(true)
-
+        isKeyWindowValueSubject.send(true)
     }
 
     @objc open func windowDidResignKey() {
-        isKeyWindowValue.set(false)
+        isKeyWindowValueSubject.send(false)
     }
 
     /*
@@ -1008,7 +1013,7 @@ open class Window: NSWindow {
      */
 
     @objc func windowDidChangeOcclusionState() {
-        occlusionStateValue.set(self.occlusionState)
+        occlusionStateSubject.send(self.occlusionState)
     }
     
     open override func updateConstraintsIfNeeded() {
@@ -1022,7 +1027,7 @@ open class Window: NSWindow {
         
         
         self.acceptsMouseMovedEvents = true
-        occlusionStateValue.set(self.occlusionState)
+        occlusionStateSubject.send(self.occlusionState)
         isOpaque = true
         
         self.contentView?.allowedTouchTypes = [.direct]

@@ -123,7 +123,7 @@ open class ContextMenuItem : NSMenuItem {
     
     public override var title: String {
         get {
-            return self.dynamicTitle?() ?? super.title
+            self.dynamicTitle?() ?? super.title
         }
         set {
             super.title = newValue
@@ -139,6 +139,7 @@ open class ContextMenuItem : NSMenuItem {
     }
     
 }
+
 
 public final class ContextMenu : NSMenu, NSMenuDelegate {
 
@@ -184,7 +185,9 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
             return _items
         }
         set {
-            _items = newValue
+            MainActor.assumeIsolated {
+                _items = newValue
+            }
         }
     }
     
@@ -193,11 +196,13 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
             $0 as? ContextMenuItem
         }
     }
-    
+    @MainActor
     public var onShow:(ContextMenu)->Void = {(ContextMenu) in}
+    
+    @MainActor
     public var onClose:()->Void = {() in}
         
-    
+    @MainActor
     public static func show(items:[ContextMenuItem], view:NSView, event:NSEvent, onShow:@escaping(ContextMenu)->Void = {_ in}, onClose:@escaping()->Void = {}, presentation: AppMenu.Presentation = .current(PresentationTheme.current.colors), isLegacy: Bool = false) -> Void {
         
         let menu = ContextMenu(presentation: presentation, isLegacy: isLegacy)
@@ -213,9 +218,14 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
     
     
     public override class func popUpContextMenu(_ menu: NSMenu, with event: NSEvent, for view: NSView) {
-        show(items: menu.items.compactMap {
-            $0 as? ContextMenuItem
-        }, view: view, event: event)
+        Task { @MainActor [weak menu, weak event, weak view] in
+            guard let menu, let event, let view else {
+                return
+            }
+            show(items: menu.items.compactMap {
+                $0 as? ContextMenuItem
+            }, view: view, event: event)
+        }
     }
     
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {

@@ -9,7 +9,8 @@
 import Cocoa
 import SwiftSignalKit
 
-open class TableRowItem: NSObject, Comparable, Identifiable {
+@MainActor
+open class TableRowItem: NSObject, @preconcurrency Comparable, Identifiable, Sendable {
     
     public static func < (lhs: TableRowItem, rhs: TableRowItem) -> Bool {
         return lhs.index < rhs.index
@@ -17,7 +18,7 @@ open class TableRowItem: NSObject, Comparable, Identifiable {
     
     open override func isEqual(_ object: Any?) -> Bool {
         if let object = object as? TableRowItem {
-            return self.stableId == object.stableId
+            return self.id == object.id
         } else {
             return false
         }
@@ -134,7 +135,7 @@ open class TableRowItem: NSObject, Comparable, Identifiable {
     }
     
     public var frame: NSRect {
-        if let table = table {
+        if let table {
             return table.rectOf(item: self)
         }
         return .zero

@@ -9,11 +9,6 @@
 import Cocoa
 import Colors
 
-
-
-
-
-
 public final class InputViewTheme: Equatable {
     public final class Quote: Equatable {
         public let foreground: PeerNameColors.Colors

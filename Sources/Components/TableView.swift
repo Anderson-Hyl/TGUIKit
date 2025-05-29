@@ -37,6 +37,7 @@ public final class RevealTableItemController : ViewController  {
     }
 }
 
+@MainActor
 public protocol RevealTableView {
     var additionalRevealDelta: CGFloat { get }
     var containerX: CGFloat { get }
@@ -70,6 +71,7 @@ public enum TableBackgroundMode: Equatable {
     }
 }
 
+@MainActor
 public class TableResortController {
     fileprivate let startTimeout: Double
     fileprivate var resortRow: Int?
@@ -223,6 +225,7 @@ public final class TableEntriesTransition<T> : TableUpdateTransition {
     }
 }
 
+@MainActor
 public protocol TableViewDelegate : AnyObject {
     
     func selectionDidChange(row:Int, item:TableRowItem, byClick:Bool, isNew:Bool) -> Void;
@@ -418,7 +421,7 @@ public extension TableScrollState {
     }
 }
 
-
+@MainActor
 protocol SelectDelegate : AnyObject {
     func selectRow(index:Int) -> Void;
     func longAction(index:Int) -> Void;
@@ -484,10 +487,11 @@ private final class TableSearchView : View {
     }
 }
 
-class TGFlipableTableView : NSTableView, CALayerDelegate {
+class TGFlipableTableView : NSTableView, @preconcurrency CALayerDelegate {
     
     var bottomInset:CGFloat = 0
-    private let longDisposable = MetaDisposable()
+//    private let longDisposable = MetaDisposable()
+    private var longTask: Task<Void, Error>?
     public var flip:Bool = true
     
     public weak var sdelegate:SelectDelegate?
@@ -624,8 +628,9 @@ class TGFlipableTableView : NSTableView, CALayerDelegate {
                 }
                 
                 let signal: Signal<Void, NoError> = .complete() |> delay(0.5, queue: .mainQueue())
-                longDisposable.set(signal.start(completed: { [weak self] in
-                    guard let `self` = self, let window = self.window else {
+                longTask = Task { [weak self] in
+                    await delay(0.5)
+                    guard let self, let window = self.window else {
                         return
                     }
                     let point = self.convert(window.mouseLocationOutsideOfEventStream, from: nil)
@@ -634,14 +639,13 @@ class TGFlipableTableView : NSTableView, CALayerDelegate {
                     if afterRange == beforeRange {
                         self.sdelegate?.longAction(index: afterRange.location)
                     }
-                }))
-                
+                }
             }
         }
     }
     
     override func mouseUp(with event: NSEvent) {
-        longDisposable.set(nil)
+        self.longTask?.cancel()
         let point = self.convert(event.locationInWindow, from: nil)
         let range = self.rows(in: NSMakeRect(point.x, point.y, 1, 1));
         if range.length > 0, let table = table, mouseDown {
@@ -665,7 +669,7 @@ class TGFlipableTableView : NSTableView, CALayerDelegate {
     
     
     deinit {
-        longDisposable.dispose()
+        longTask?.cancel()
     }
     
     
@@ -695,6 +699,7 @@ class TGFlipableTableView : NSTableView, CALayerDelegate {
 
 }
 
+@MainActor
 public protocol InteractionContentViewProtocol : AnyObject {
     func contentInteractionView(for stableId: AnyHashable, animateIn: Bool) -> NSView?
     func interactionControllerDidFinishAnimation(interactive: Bool, for stableId: AnyHashable)
@@ -763,9 +768,16 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
     private var trackingArea:NSTrackingArea?
     private var listhash:[AnyHashable:TableRowItem] = [AnyHashable:TableRowItem]();
     
-    private let mergePromise:Promise<TableUpdateTransition> = Promise()
-    private let mergeDisposable:MetaDisposable = MetaDisposable()
-    
+//    private let mergePromise:Promise<TableUpdateTransition> = Promise()
+//    private let mergeDisposable:MetaDisposable = MetaDisposable()
+    private var mergeTask: Task<Void, Never>?
+    private var mergeStreamPair = AsyncStream<TableUpdateTransition>.makeStream()
+    private var mergeContinuation: AsyncStream<TableUpdateTransition>.Continuation {
+        mergeStreamPair.continuation
+    }
+    private var mergeStream: AsyncStream<TableUpdateTransition> {
+        mergeStreamPair.stream
+    }
     public var resortController: TableResortController? {
         didSet {
             if let oldValue {
@@ -1004,10 +1016,13 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
 
 //        self.tableView.addTableColumn(tableColumn)
        
-        
-        mergeDisposable.set(mergePromise.get().start(next: { [weak self] (transition) in
-            self?.merge(with: transition)
-        }))
+        mergeTask?.cancel()
+        mergeTask = Task { [weak self] in
+            guard let self else { return }
+            for await transition in self.mergeStream {
+                self.merge(with: transition)
+            }
+        }
         
     }
     
@@ -1271,24 +1286,32 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
             let clipView = self.contentView
             
             NotificationCenter.default.addObserver(forName: NSScrollView.didEndLiveScrollNotification, object: self, queue: nil, using: { [weak self] _ in
-                self?.scrollDidEndLiveScrolling()
+                Task { @MainActor in
+                    self?.scrollDidEndLiveScrolling()
+                }
             })
             
             NotificationCenter.default.addObserver(forName: NSScrollView.willStartLiveScrollNotification, object: self, queue: nil, using: { [weak self] _ in
-                self?.scrollWillStartLiveScrolling()
+                Task { @MainActor in
+                    self?.scrollWillStartLiveScrolling()
+                }
             })
             
             NotificationCenter.default.addObserver(forName: NSScrollView.didLiveScrollNotification, object: self, queue: nil, using: { [weak self] _ in
-                self?.scrollDidLiveScrolling()
+                Task { @MainActor in
+                    self?.scrollDidLiveScrolling()
+                }
             })
             
 
             NotificationCenter.default.addObserver(forName: NSScrollView.boundsDidChangeNotification, object: clipView, queue: nil, using: { [weak self] _ in
-                CATransaction.begin()
-                if self?.superview != nil {
-                    self?.updateScroll()
+                Task { @MainActor in
+                    CATransaction.begin()
+                    if self?.superview != nil {
+                        self?.updateScroll()
+                    }
+                    CATransaction.commit()
                 }
-                CATransaction.commit()
             })
             
         } else {
@@ -1449,8 +1472,7 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
          return nil
     }
 
-    
-    private let stickTimeoutDisposable = MetaDisposable()
+    private var stickTimeoutTask: Task<Void, Never>?
     private var previousStickMinY: CGFloat? = nil
     
     private var stickTopInset: CGFloat = 0
@@ -1620,14 +1642,13 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
                         } else {
                             stickView.isHidden = documentSize.height <= frame.height || documentOffset.y > (documentSize.height - frame.height)
                         }
-
-                        stickTimeoutDisposable.set((Signal<Void, NoError>.single(Void()) |> delay(2.0, queue: Queue.mainQueue())).start(next: { [weak stickView] in
-                            
-                            if itemRect.height == 0, let stickView = stickView {
+                        stickTimeoutTask?.cancel()
+                        stickTimeoutTask = Task { [weak stickView] in
+                            await delay(2)
+                            if itemRect.height == 0, let stickView {
                                 stickView.updateIsVisible(false, animated: true)
                             }
-                        }))
-                        
+                        }
                     }
                     
                 } else  {
@@ -2648,18 +2669,29 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
     }
     
     public func stopMerge() {
-        mergeDisposable.set(nil)
-        mergePromise.set(.single(TableUpdateTransition(deleted: [], inserted: [], updated: [])))
+        mergeTask?.cancel()
+        mergeContinuation.yield(TableUpdateTransition(deleted: [], inserted: [], updated: []))
     }
     
     public func startMerge() {
-        mergeDisposable.set((mergePromise.get() |> deliverOnMainQueue).start(next: { [weak self] transition in
-            self?.merge(with: transition)
-        }))
+        mergeTask?.cancel()
+        mergeTask = Task { [weak self] in
+            guard let self else { return }
+            for await transition in self.mergeStream {
+                self.merge(with: transition)
+            }
+        }
+//        mergeDisposable.set((mergePromise.get() |> deliverOnMainQueue).start(next: { [weak self] transition in
+//            self?.merge(with: transition)
+//        }))
     }
     
-    public func merge(with transition:Signal<TableUpdateTransition, NoError>) {
-        mergePromise.set(transition |> deliverOnMainQueue)
+//    public func merge(with transition:Signal<TableUpdateTransition, NoError>) {
+//        mergePromise.set(transition |> deliverOnMainQueue)
+//    }
+    
+    public func merge(with transition: TableUpdateTransition) {
+        mergeContinuation.yield(transition)
     }
     
     public var isBoundsAnimated: Bool {
@@ -3541,7 +3573,7 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
     
     deinit {
         mergeDisposable.dispose()
-        stickTimeoutDisposable.dispose()
+        stickTimeoutTask?.cancel()
     }
     
     

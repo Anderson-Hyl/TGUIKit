@@ -9,10 +9,12 @@
 import Cocoa
 import SwiftSignalKit
 import AVFoundation
+import Combine
 
-
+@MainActor
 public weak var mw:Window?
 
+@MainActor
 public var mainWindow:Window {
     if let window = NSApp.keyWindow as? Window {
         return window
@@ -176,7 +178,18 @@ public func delaySignal(_ value:Double) -> Signal<NoValue, NoError> {
     return .complete() |> delay(value, queue: .mainQueue())
 }
 
+public func delayPublisher(_ value: Double) -> AnyPublisher<Void, Never> {
+    Empty().delay(for: .seconds(value), scheduler: DispatchQueue.main).eraseToAnyPublisher()
+}
 
+@MainActor
+public func delay(_ value: Double) async {
+    do {
+        try await Task.sleep(for: .seconds(value))
+    } catch {
+        print("Delay error: \(error)")
+    }
+}
 
 
 public func link(path:String?, ext:String) -> String? {

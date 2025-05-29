@@ -1,9 +1,9 @@
 import Foundation
 
-public protocol Identifiable {
-    associatedtype T: Hashable
-    var stableId: T { get }
-}
+//public protocol Identifiable {
+//    associatedtype T: Hashable
+//    var stableId: T { get }
+//}
 
 public func mergeListsStable<T>(leftList: [T], rightList: [T]) -> ([Int], [(Int, T, Int?)]) where T: Comparable, T: Equatable, T: Identifiable {
     var removeIndices: [Int] = []
@@ -41,10 +41,10 @@ public func mergeListsStable<T>(leftList: [T], rightList: [T]) -> ([Int], [(Int,
         currentList.remove(at: index)
     }
     
-    var previousIndices: [T.T: Int] = [:]
+    var previousIndices: [T.ID: Int] = [:]
     i = 0
     for left in leftList {
-        previousIndices[left.stableId] = i
+        previousIndices[left.id] = i
         i += 1
     }
     
@@ -59,7 +59,7 @@ public func mergeListsStable<T>(leftList: [T], rightList: [T]) -> ([Int], [(Int,
                 i += 1
                 j += 1
             } else if left > right {
-                let previousIndex = previousIndices[right.stableId]
+                let previousIndex = previousIndices[right.id]
                 insertItems.append((i, right, previousIndex))
                 currentList.insert(right, at: i)
                 i += 1
@@ -70,7 +70,7 @@ public func mergeListsStable<T>(leftList: [T], rightList: [T]) -> ([Int], [(Int,
         } else if let _ = left {
             i += 1
         } else if let right = right {
-            let previousIndex = previousIndices[right.stableId]
+            let previousIndex = previousIndices[right.id]
             insertItems.append((i, right, previousIndex))
             currentList.insert(right, at: i)
             i += 1
@@ -94,9 +94,9 @@ public func mergeListsStableWithUpdates<T>(leftList: [T], rightList: [T], allUpd
     var currentList = leftList
     
     var i = 0
-    var previousIndices: [T.T: Int] = [:]
+    var previousIndices: [T.ID: Int] = [:]
     for left in leftList {
-        previousIndices[left.stableId] = i
+        previousIndices[left.id] = i
         i += 1
     }
     
@@ -107,8 +107,8 @@ public func mergeListsStableWithUpdates<T>(leftList: [T], rightList: [T], allUpd
         let right: T? = j < rightList.count ? rightList[j] : nil
         
         if let left = left, let right = right {
-            if left.stableId == right.stableId && (left != right || allUpdated) {
-                updatedIndices.append((i, right, previousIndices[left.stableId]!))
+            if left.id == right.id && (left != right || allUpdated) {
+                updatedIndices.append((i, right, previousIndices[left.id]!))
                 i += 1
                 j += 1
             } else {
@@ -191,7 +191,7 @@ public func mergeListsStableWithUpdates<T>(leftList: [T], rightList: [T], allUpd
                 //print("\(left.stableId)>\(right.stableId)")
                 //print("insert \(right.stableId) at \(i)")
                 //print("i++, j++")
-                let previousIndex = previousIndices[right.stableId]
+                let previousIndex = previousIndices[right.id]
                 insertItems.append((i, right, previousIndex))
                 currentList.insert(right, at: i)
                 if k < updatedIndices.count {
@@ -216,7 +216,7 @@ public func mergeListsStableWithUpdates<T>(leftList: [T], rightList: [T], allUpd
             //print("insert \(right.stableId) at \(i)")
             //print("i++")
             //print("j++")
-            let previousIndex = previousIndices[right.stableId]
+            let previousIndex = previousIndices[right.id]
             insertItems.append((i, right, previousIndex))
             currentList.insert(right, at: i)
             
@@ -273,9 +273,9 @@ public func mergeListsStableWithUpdatesReversed<T>(leftList: [T], rightList: [T]
     var currentList = leftList
     
     var i = 0
-    var previousIndices: [T.T: Int] = [:]
+    var previousIndices: [T.ID: Int] = [:]
     for left in leftList {
-        previousIndices[left.stableId] = i
+        previousIndices[left.id] = i
         i += 1
     }
     
@@ -286,8 +286,8 @@ public func mergeListsStableWithUpdatesReversed<T>(leftList: [T], rightList: [T]
         let right: T? = j < rightList.count ? rightList[j] : nil
         
         if let left = left, let right = right {
-            if left.stableId == right.stableId && (left != right || allUpdated) {
-                updatedIndices.append((i, right, previousIndices[left.stableId]!))
+            if left.id == right.id && (left != right || allUpdated) {
+                updatedIndices.append((i, right, previousIndices[left.id]!))
                 i += 1
                 j += 1
             } else {
@@ -352,7 +352,7 @@ public func mergeListsStableWithUpdatesReversed<T>(leftList: [T], rightList: [T]
                 i += 1
                 j += 1
             } else if left < right {
-                let previousIndex = previousIndices[right.stableId]
+                let previousIndex = previousIndices[right.id]
                 insertItems.append((i, right, previousIndex))
                 currentList.insert(right, at: i)
                 if k < updatedIndices.count {
@@ -369,7 +369,7 @@ public func mergeListsStableWithUpdatesReversed<T>(leftList: [T], rightList: [T]
         } else if let _ = left {
             i += 1
         } else if let right = right {
-            let previousIndex = previousIndices[right.stableId]
+            let previousIndex = previousIndices[right.id]
             insertItems.append((i, right, previousIndex))
             currentList.insert(right, at: i)
             
