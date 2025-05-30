@@ -41,8 +41,11 @@ open class HorizontalRowView: TableRowView {
         container.addSubview(view)
     }
     
-    deinit {
-        container.removeAllSubviews()
+    open override func viewWillMove(toSuperview newSuperview: NSView?) {
+        super.viewWillMove(toSuperview: newSuperview)
+        if newSuperview == nil {
+            container.removeAllSubviews()
+        }
     }
     
     open override func layout() {

@@ -8,7 +8,7 @@
 import Foundation
 import Cocoa
 
-public final class NullActionClass: NSObject, CAAction {
+public final class NullActionClass: NSObject, CAAction, Sendable {
     @objc public func run(forKey event: String, object anObject: Any, arguments dict: [AnyHashable : Any]?) {
     }
 }

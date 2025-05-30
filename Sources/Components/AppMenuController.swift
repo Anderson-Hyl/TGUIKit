@@ -89,6 +89,7 @@ final class MenuView: Control, TableViewDelegate {
         }
         let item: ContextMenuItem?
         let index: Int
+        
         var id: AnyHashable {
             let menuItem = self.item
             let index = self.index
@@ -223,9 +224,8 @@ final class MenuView: Control, TableViewDelegate {
     
     func merge(menu: ContextMenu, presentation: AppMenu.Presentation, interaction: AppMenuBasicItem.Interaction) {
         self.observation = menu.observe(\._items, options: [.new], changeHandler: { [weak self] menu, value in
-            let capturedNewValue = value.newValue
+            let new = value.newValue?.compactMap { $0 as? ContextMenuItem } ?? []
             Task { @MainActor in
-                let new = capturedNewValue?.compactMap { $0 as? ContextMenuItem } ?? []
                 self?.apply(current: new, presentation: presentation, interaction: interaction)
             }
         })
@@ -322,7 +322,8 @@ final class AppMenuController : NSObject  {
     private let betterInside: Bool
     private let appearMode: AppMenu.AppearMode
     
-    private var keyCancellable: AnyCancellable?
+//    private var keyCancellable: AnyCancellable?
+    private var keyCancelTask: Task<Void, Never>?
     private var search: AnyCancellable?
     var onClose:()->Void = {}
     var onShow:()->Void = {}
@@ -344,8 +345,7 @@ final class AppMenuController : NSObject  {
     private var previousCopyHandler: (()->Void)? = nil
 
     private weak var parentView: NSView?
-    private var delayCancellable: AnyCancellable?
-    
+    private var closeTask: Task<Void, Never>?
     
     init(_ menu: ContextMenu, presentation: AppMenu.Presentation, holder: AppMenu, betterInside: Bool, appearMode: AppMenu.AppearMode, parentView: NSView?) {
         self.menu = menu
@@ -435,13 +435,13 @@ final class AppMenuController : NSObject  {
                     let s_m_point = window.convertToScreen(CGRect(origin: event.locationInWindow, size: .zero)).origin
                     let mouseInMenu = self.activeMenu?.mouseInside() == true
                     if NSPointInRect(s_m_point, s_v_rect) || mouseInMenu {
-                        delayCancellable?.cancel()
+                        closeTask?.cancel()
                     } else {
-                        delayCancellable = Just(())
-                            .delay(for: .milliseconds(100), scheduler: RunLoop.main)
-                            .sink(receiveCompletion: { [weak self] _ in
-                                self?.closeAll()
-                            }, receiveValue: {})
+                        closeTask?.cancel()
+                        closeTask = Task { [weak self] in
+                            await delay(0.1)
+                            self?.close()
+                        }
                     }
                 }
             }
@@ -921,7 +921,7 @@ final class AppMenuController : NSObject  {
 
         return rect
     }
-    
+    @MainActor
     func present(event: NSEvent, view: NSView) {
         
         self.parent = event.window as? Window
@@ -930,16 +930,22 @@ final class AppMenuController : NSObject  {
         self.activate(event: event, view: view, animated: true)
         self.onShow()
         self.previousCopyHandler = self.parent?.masterCopyhandler
-        var skippedFirst: Bool = false
-        self.keyCancellable = self.parent?.keyWindowUpdater.sink(receiveValue: { [weak self] value in
-            if !value && skippedFirst {
-                let isKey = NSApp.mainWindow != nil
-                if !isKey {
-                    self?.closeAll()
+        self.keyCancelTask?.cancel()
+        self.keyCancelTask = Task { [weak self, parent] in
+            guard let parent else { return }
+            var skippedFirst = false
+            for await value in parent.keyWindowUpdater.values {
+                guard let self else { break }
+
+                if !value && skippedFirst {
+                    let isKey = NSApp.mainWindow != nil
+                    if !isKey {
+                        self.closeAll()
+                    }
                 }
+                skippedFirst = true
             }
-            skippedFirst = true
-        })
+        }
     }
     
     private func closeAll() {
@@ -958,8 +964,8 @@ final class AppMenuController : NSObject  {
     }
     
     deinit {
-        self.delayCancellable?.cancel()
-        self.keyCancellable?.cancel()
+        self.closeTask?.cancel()
+        self.keyCancelTask?.cancel()
     }
 }
 

@@ -41,7 +41,7 @@ final class _EmptyDisposable: Disposable {
     }
 }
 
-public let EmptyDisposable: Disposable = _EmptyDisposable()
+nonisolated(unsafe) public let EmptyDisposable: Disposable = _EmptyDisposable()
 
 public final class ActionDisposable : Disposable {
     private var lock = pthread_mutex_t()

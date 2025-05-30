@@ -1019,9 +1019,9 @@ open class TableView: ScrollView, NSTableViewDelegate,NSTableViewDataSource,Sele
         mergeTask?.cancel()
         mergeTask = Task { [weak self] in
             guard let self else { return }
-            for await transition in self.mergeStream {
-                self.merge(with: transition)
-            }
+//            for await transition in self.mergeStream {
+//                self.merge(with: transition)
+//            }
         }
         
     }

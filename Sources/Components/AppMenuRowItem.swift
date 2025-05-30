@@ -80,8 +80,11 @@ open class AppMenuBasicItemView: TableRowView {
         return containerView.frame.size
     }
     
-    deinit {
-        containerView.removeAllSubviews()
+    open override func viewWillMove(toSuperview newSuperview: NSView?) {
+        super.viewWillMove(toSuperview: newSuperview)
+        if newSuperview == nil {
+            containerView.removeAllSubviews()
+        }
     }
     
     open override var backdorColor: NSColor {
@@ -178,10 +181,14 @@ open class AppMenuRowItem : AppMenuBasicItem {
         super.init(initialSize, presentation: presentation, menuItem: item, interaction: interaction)
         self.menuItem = item
         self.observation_i = item.observe(\.image, options: .new, changeHandler: { [weak self] object, change in
-            self?.redraw(animated: true)
+            Task { @MainActor in
+                self?.redraw(animated: true)
+            }
         })
         self.observation_t = item.observe(\.title, options: .new, changeHandler: { [weak self] object, change in
-            self?.redraw(animated: true)
+            Task { @MainActor in
+                self?.redraw(animated: true)
+            }
         })
         item.redraw = { [weak self] in
             self?.redraw(animated: true)

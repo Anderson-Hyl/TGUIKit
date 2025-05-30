@@ -1,6 +1,6 @@
 import Foundation
 
-let doNothing: () -> Void = { }
+nonisolated(unsafe) let doNothing: () -> Void = { }
 
 public enum NoValue {
 }

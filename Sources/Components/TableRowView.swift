@@ -394,11 +394,11 @@ open class TableRowView: NSTableRowView, CALayerDelegate {
         return false
     }
     
-    open override func copy() -> Any {
-        let view:View = View(frame:bounds)
-        view.backgroundColor = self.backdorColor
-        return view
-    }
+//    open override func copy() -> Any {
+//        let view:View = View(frame:bounds)
+//        view.backgroundColor = self.backdorColor
+//        return view
+//    }
     
     open func onRemove(_ animation: NSTableView.AnimationOptions) {
         

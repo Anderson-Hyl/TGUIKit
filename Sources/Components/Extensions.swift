@@ -10,6 +10,7 @@ import Foundation
 import CoreText
 import AppKit
 import ObjcUtils
+import ColorPalette
 
 public typealias UIImage = NSImage
 
@@ -303,7 +304,7 @@ public extension NSPasteboard.PasteboardType {
     }
 }
 
-public struct ParsingType: OptionSet {
+public struct ParsingType: OptionSet, Sendable {
     public var rawValue: UInt32
     
     public init(rawValue: UInt32) {
@@ -539,6 +540,7 @@ public extension NSMutableAttributedString {
 //        }
     }
     
+    @MainActor
     func add(link:Any, for range:NSRange, color: NSColor = presentation.colors.link)  {
         self.addAttribute(NSAttributedString.Key.link, value: link, range: range)
         self.addAttribute(NSAttributedString.Key.foregroundColor, value: color, range: range)
@@ -1247,6 +1249,7 @@ public extension CGSize {
 
 public extension NSImage {
     
+    @MainActor
     func precomposed(_ colors:[NSColor], flipVertical:Bool = false, flipHorizontal:Bool = false, scale: CGFloat = System.backingScale) -> CGImage {
         
         let drawContext:DrawingContext = DrawingContext(size: NSMakeSize(self.size.width, self.size.height), scale: scale, clear: true)
@@ -1611,7 +1614,7 @@ public extension NSScrollView {
     }
 }
 
-public struct LayoutPositionFlags : OptionSet {
+public struct LayoutPositionFlags : OptionSet, Sendable {
     
     public var rawValue: UInt32
     
@@ -1651,7 +1654,7 @@ public struct LayoutPositionFlags : OptionSet {
         self.rawValue = rawValue
     }
     
-    public static let none = LayoutPositionFlags(rawValue: 0)
+    public static let none = LayoutPositionFlags([])
     public static let top = LayoutPositionFlags(rawValue: 1 << 0)
     public static let bottom = LayoutPositionFlags(rawValue: 1 << 1)
     public static let left = LayoutPositionFlags(rawValue: 1 << 2)
@@ -1659,10 +1662,10 @@ public struct LayoutPositionFlags : OptionSet {
     public static let inside = LayoutPositionFlags(rawValue: 1 << 4)
 }
 
-public struct NSRectCorner: OptionSet {
+public struct NSRectCorner: OptionSet, Sendable {
     public let rawValue: UInt
     
-    public static let none = NSRectCorner(rawValue: 0)
+    public static let none = NSRectCorner([])
     public static let topLeft = NSRectCorner(rawValue: 1 << 0)
     public static let topRight = NSRectCorner(rawValue: 1 << 1)
     public static let bottomLeft = NSRectCorner(rawValue: 1 << 2)
@@ -1923,7 +1926,7 @@ public extension NSRect {
 
 public extension NSEdgeInsets {
 
-    public init(left:CGFloat = 0, right:CGFloat = 0, top:CGFloat = 0, bottom:CGFloat = 0) {
+    init(left:CGFloat = 0, right:CGFloat = 0, top:CGFloat = 0, bottom:CGFloat = 0) {
         self.init(top: top, left: left, bottom: bottom, right: right)
     }
 }
@@ -2364,7 +2367,7 @@ public extension String {
         return result
     }
 }
-extension NSEdgeInsets : Equatable {
+extension NSEdgeInsets : @retroactive Equatable {
     public static func ==(lhs: NSEdgeInsets, rhs: NSEdgeInsets) -> Bool {
         return lhs.left == rhs.left && lhs.right == rhs.right && lhs.bottom == rhs.bottom && lhs.top == rhs.top
     }
@@ -2378,7 +2381,7 @@ public func arc4random64() -> Int64 {
     return Int64.random(in: Int64.min ... Int64.max)
 }
 
-
+@MainActor
 public func performSubviewRemoval(_ view: NSView, animated: Bool, duration: Double = 0.2, timingFunction: CAMediaTimingFunctionName = .easeOut, checkCompletion: Bool = false, scale: Bool = false, scaleTo: CGFloat? = nil, completed:((Bool)->Void)? = nil) {
     if animated {
         let from = view.layer?.presentation()?.opacity ?? view.layer?.opacity ?? 1
@@ -2424,6 +2427,7 @@ public func performSublayerRemoval(_ view: CALayer, animated: Bool, duration: Do
     }
 }
 
+@MainActor
 public func performSubviewPosRemoval(_ view: NSView, pos: NSPoint, animated: Bool, duration: Double = 0.2, timingFunction: CAMediaTimingFunctionName = .easeInEaseOut) {
     if animated {
         view.layer?.animatePosition(from: view.frame.origin, to: pos, duration: duration, timingFunction: timingFunction, removeOnCompletion: false, completion: { [weak view] _ in

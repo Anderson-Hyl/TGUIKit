@@ -1,12 +1,12 @@
 import Foundation
 
-private let QueueSpecificKey = DispatchSpecificKey<NSObject>()
-
-private let globalMainQueue = Queue(queue: DispatchQueue.main, specialIsMainQueue: true)
-private let globalDefaultQueue = Queue(queue: DispatchQueue.global(qos: .default), specialIsMainQueue: false)
-private let globalBackgroundQueue = Queue(queue: DispatchQueue.global(qos: .background), specialIsMainQueue: false)
+//private let QueueSpecificKey = DispatchSpecificKey<NSObject>()
 
 public final class Queue {
+    nonisolated(unsafe) private static let QueueSpecificKey = DispatchSpecificKey<NSObject>()
+    nonisolated(unsafe) private static let globalMainQueue = Queue(queue: DispatchQueue.main, specialIsMainQueue: true)
+    nonisolated(unsafe) private static let globalDefaultQueue = Queue(queue: DispatchQueue.global(qos: .default), specialIsMainQueue: false)
+    nonisolated(unsafe) private static let globalBackgroundQueue = Queue(queue: DispatchQueue.global(qos: .background), specialIsMainQueue: false)
     private let nativeQueue: DispatchQueue
     private var specific = NSObject()
     private let specialIsMainQueue: Bool
@@ -44,11 +44,11 @@ public final class Queue {
         
         self.specialIsMainQueue = false
         
-        self.nativeQueue.setSpecific(key: QueueSpecificKey, value: self.specific)
+        self.nativeQueue.setSpecific(key: Self.QueueSpecificKey, value: self.specific)
     }
     
     public func isCurrent() -> Bool {
-        if DispatchQueue.getSpecific(key: QueueSpecificKey) === self.specific {
+        if DispatchQueue.getSpecific(key: Self.QueueSpecificKey) === self.specific {
             return true
         } else if self.specialIsMainQueue && Thread.isMainThread {
             return true

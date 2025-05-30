@@ -8,7 +8,8 @@
 
 import Cocoa
 
-public struct ControlStyle: Equatable {
+@MainActor
+public struct ControlStyle: @preconcurrency Equatable {
     public var font: NSFont = .normal(.text)
     public var foregroundColor: NSColor = .text
     public var backgroundColor: NSColor = .clear
@@ -70,6 +71,6 @@ public struct ControlStyle: Equatable {
 
 
 
-public func ==(lhs:ControlStyle, rhs:ControlStyle) -> Bool {
+@MainActor public func ==(lhs:ControlStyle, rhs:ControlStyle) -> Bool {
     return lhs.font == rhs.font && lhs.foregroundColor == rhs.foregroundColor && rhs.backgroundColor == lhs.backgroundColor
 }

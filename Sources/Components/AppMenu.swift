@@ -3,7 +3,7 @@ import AppKit
 import ColorPalette
 import Combine
 
-@MainActor
+
 public final class AppMenu {
     
     public enum ItemMode {
@@ -23,7 +23,8 @@ public final class AppMenu {
         }
     }
     
-    public struct Presentation {
+    @MainActor
+    public struct Presentation: Sendable {
         public let colors: ColorPalette
         public var textColor: NSColor {
             return colors.text
@@ -57,7 +58,7 @@ public final class AppMenu {
         public static func current(_ palette: ColorPalette) -> Presentation {
             return Presentation(colors: palette)
         }
-        public func primaryColor(_ item: ContextMenuItem) -> NSColor {
+        @MainActor public func primaryColor(_ item: ContextMenuItem) -> NSColor {
             if item.isEnabled {
                 switch item.itemMode {
                 case .normal:
@@ -92,14 +93,14 @@ public final class AppMenu {
         self.timerTask?.cancel()
     }
     
-    public static func show(menu: ContextMenu, event: NSEvent, for view: NSView, appearMode: AppearMode = .click) {
+    @MainActor public static func show(menu: ContextMenu, event: NSEvent, for view: NSView, appearMode: AppearMode = .click) {
         if !menu.isShown {
             let appMenu = AppMenu(menu: menu, appearMode: appearMode)
             appMenu.show(event: event, view: view)
         }
     }
     
-    public func show(event: NSEvent, view: NSView) {
+    @MainActor public func show(event: NSEvent, view: NSView) {
         
         
         NSCursor.arrow.set()
@@ -131,8 +132,8 @@ public final class AppMenu {
             }
             
             if !self.menu.contextItems.isEmpty {
+                
                 self.presentIfNeeded(event: event, view: view)
-//                self.timerCancellable?.cancel()
                 self.timerTask?.cancel()
             } else {
                 self.observation = self.menu.observe(\._items, options: [.new], changeHandler: { [weak view, weak self] menu, value in
@@ -152,17 +153,19 @@ public final class AppMenu {
         }
     }
     
-    private func handleMenuItemsChanged(event: NSEvent, view: NSView) {
+    
+    @MainActor private func handleMenuItemsChanged(event: NSEvent, view: NSView) {
         if !self.menu.isShown, !self.menu.contextItems.isEmpty {
             self.presentIfNeeded(event: event, view: view)
             self.timerDisposable?.dispose()
         }
     }
-    private func presentIfNeeded(event: NSEvent, view: NSView) {
+    
+    @MainActor private func presentIfNeeded(event: NSEvent, view: NSView) {
         self.controller?.present(event: event, view: view)
     }
     
-    public static func closeAll() {
+    @MainActor public static func closeAll() {
         AppMenuController.closeAll()
     }
 }

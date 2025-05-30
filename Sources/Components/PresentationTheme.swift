@@ -10,21 +10,23 @@ import Cocoa
 import SwiftSignalKit
 import ColorPalette
 
-private var _theme:Atomic<PresentationTheme> = Atomic(value: defaultPresentation)
+@MainActor private var _theme:Atomic<PresentationTheme> = Atomic(value: defaultPresentation)
 
-private let defaultPresentation = PresentationTheme(colors: whitePalette, search: SearchTheme(.grayBackground, #imageLiteral(resourceName: "Icon_SearchField").precomposed(), #imageLiteral(resourceName: "Icon_SearchClear").precomposed(), {localizedString("SearchField.Search")}, .text, .grayText), inputTheme: .init(quote: .init(foreground: .init(main: NSColor.accent), icon: NSImage(named: "Icon_Quote")!, collapse: NSImage(named: "Icon_Quote_Collapse")!, expand: NSImage(named: "Icon_Quote_Expand")!), indicatorColor: NSColor.accent, backgroundColor: NSColor.grayBackground, selectingColor: NSColor.selectText, textColor: NSColor.textColor, accentColor: NSColor.accent, grayTextColor: NSColor.grayText, fontSize: 13))
+@MainActor private let defaultPresentation = PresentationTheme(colors: whitePalette, search: SearchTheme(.grayBackground, #imageLiteral(resourceName: "Icon_SearchField").precomposed(), #imageLiteral(resourceName: "Icon_SearchClear").precomposed(), {localizedString("SearchField.Search")}, .text, .grayText), inputTheme: .init(quote: .init(foreground: .init(main: NSColor.accent), icon: NSImage(named: "Icon_Quote")!, collapse: NSImage(named: "Icon_Quote_Collapse")!, expand: NSImage(named: "Icon_Quote_Expand")!), indicatorColor: NSColor.accent, backgroundColor: NSColor.grayBackground, selectingColor: NSColor.selectText, textColor: NSColor.textColor, accentColor: NSColor.accent, grayTextColor: NSColor.grayText, fontSize: 13))
 
 
-
+@MainActor
 public var presentation:PresentationTheme {
     return _theme.modify {$0}
 }
 
+@MainActor
 public func updateTheme(_ theme:PresentationTheme) {
     assertOnMainThread()
     _ = _theme.swap(theme)
 }
 
+@MainActor
 open class PresentationTheme : Equatable {
     
     public let colors:ColorPalette
@@ -43,7 +45,7 @@ open class PresentationTheme : Equatable {
         return presentation
     }
     
-    public static func ==(lhs: PresentationTheme, rhs: PresentationTheme) -> Bool {
+    nonisolated public static func ==(lhs: PresentationTheme, rhs: PresentationTheme) -> Bool {
         return lhs === rhs
     }
 }

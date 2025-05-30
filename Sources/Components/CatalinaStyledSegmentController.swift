@@ -231,7 +231,7 @@ public class CatalinaStyledSegmentController: ViewController {
         super.init(frame: frameRect)
         bar = .init(height: 0)
     }
-    
+    @MainActor
     public var theme: CatalinaSegmentTheme {
         get {
             return genericView.theme
@@ -249,46 +249,51 @@ public class CatalinaStyledSegmentController: ViewController {
     public var count: Int {
         return self.items.count
     }
-    
+    @MainActor
     private func select(_ index: Int, animated: Bool) {
         self.selected = index
         items[index].handler()
         genericView.set(selected: index, animated: animated)
     }
     
+    @MainActor
     public func add(segment: CatalinaSegmentedItem) -> Void {
         items.append(segment)
         genericView.update(items: items, selected: selected, animated: false, select: { [weak self] index, animated in
             self?.select(index, animated: animated)
         })
     }
+    @MainActor
     public func segment(at index:Int) -> CatalinaSegmentedItem {
         return items[index]
     }
+    @MainActor
     public func replace(segment: CatalinaSegmentedItem, at index:Int) -> Void {
        items[index] = segment
         genericView.update(items: items, selected: selected, animated: false, select: { [weak self] index, animated in
             self?.select(index, animated: animated)
         })
     }
+    @MainActor
     public func insert(segment: CatalinaSegmentedItem, at index: Int) -> Void {
         items.insert(segment, at: index)
         genericView.update(items: items, selected: selected, animated: false, select: { [weak self] index, animated in
             self?.select(index, animated: animated)
         })
     }
+    @MainActor
     public func remove(at index: Int) -> Void {
         items.remove(at: index)
         genericView.update(items: items, selected: selected, animated: false, select: { [weak self] index, animated in
             self?.select(index, animated: animated)
         })
     }
-    
+    @MainActor
     public func set(selected index: Int, animated: Bool = false) -> Void {
         selected = index
         genericView.set(selected: index, animated: animated)
     }
-    
+    @MainActor
     public func selectNext(animated: Bool) {
         var index = self.selected
         index += 1
@@ -297,7 +302,7 @@ public class CatalinaStyledSegmentController: ViewController {
         }
         self.select(index, animated: animated)
     }
-    
+    @MainActor
     public func removeAll() -> Void {
         selected = 0
         items.removeAll()

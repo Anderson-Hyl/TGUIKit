@@ -1,50 +1,30 @@
-import Cocoa
-import SwiftSignalKit
+import Foundation
+import CoreGraphics
 
-private final class PresentationsResourceCacheHolder {
-    var images: [Int32: CGImage] = [:]
-}
-
-private final class PresentationsResourceAnyCacheHolder {
-    var objects: [Int32: Any] = [:]
-}
-
-public final class PresentationsResourceCache {
+public actor PresentationsResourceCache {
     
-    public init() {
-        
-    }
+    private var imageCache: [Int32: CGImage] = [:]
+    private var objectCache: [Int32: Any] = [:]
     
-    private let imageCache = Atomic<PresentationsResourceCacheHolder>(value: PresentationsResourceCacheHolder())
-    private let objectCache = Atomic<PresentationsResourceAnyCacheHolder>(value: PresentationsResourceAnyCacheHolder())
+    public init() {}
     
-    public func image(_ key: Int32, _ generate: () -> CGImage) -> CGImage {
-        let result = self.imageCache.with { holder -> CGImage? in
-            return holder.images[key]
-        }
-        if let result = result {
-            return result
+    public func image(for key: Int32, generate: () -> CGImage) -> CGImage {
+        if let cached = imageCache[key] {
+            return cached
         } else {
             let image = generate()
-            self.imageCache.with { holder -> Void in
-                holder.images[key] = image
-            }
+            imageCache[key] = image
             return image
         }
     }
     
-    public func object(_ key: Int32, _ generate: () -> Any) -> Any {
-        let result = self.objectCache.with { holder -> Any? in
-            return holder.objects[key]
-        }
-        if let result = result {
-            return result
+    public func object(for key: Int32, generate: () -> Any) -> Any {
+        if let cached = objectCache[key] {
+            return cached
         } else {
-            let object = generate()
-            self.objectCache.with { holder -> Void in
-                holder.objects[key] = object
-            }
-            return object
+            let obj = generate()
+            objectCache[key] = obj
+            return obj
         }
     }
 }

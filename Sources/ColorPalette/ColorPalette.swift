@@ -157,9 +157,8 @@ public enum PaletteWallpaper : Equatable {
     }
 }
 
+@MainActor
 public func ==(lhs: ColorPalette, rhs: ColorPalette) -> Bool {
-    
-
     if lhs.isNative != rhs.isNative {
         return false
     }
@@ -217,7 +216,8 @@ public struct PaletteAccentColor : Equatable {
     }
 }
 
-public class ColorPalette : Equatable {
+@MainActor
+public class ColorPalette : @preconcurrency Equatable {
     
     public let isNative: Bool
     public let isDark: Bool
@@ -1688,7 +1688,7 @@ public class ColorPalette : Equatable {
     }
 }
 
-
+@MainActor
 public enum TelegramBuiltinTheme : String {
     case day = "day"
     case dayClassic = "dayClassic"
@@ -1696,7 +1696,7 @@ public enum TelegramBuiltinTheme : String {
     case nightAccent = "nightAccent"
     case system = "system"
     
-    public init?(rawValue: String) {
+    nonisolated public init?(rawValue: String) {
         switch rawValue {
         case  "Day":
             self = .day
@@ -1744,7 +1744,7 @@ public enum TelegramBuiltinTheme : String {
 
 
 //0xE3EDF4
-public let whitePalette = ColorPalette(isNative: true, isDark: false,
+@MainActor public let whitePalette = ColorPalette(isNative: true, isDark: false,
                                        tinted: false,
                                        name: "day",
                                        parent: .day,
@@ -1892,7 +1892,7 @@ public let whitePalette = ColorPalette(isNative: true, isDark: false,
  colors[6] = NSColor(0x3d72ed); // blue
  */
 
-public let nightAccentPalette = ColorPalette(isNative: true, isDark: true,
+@MainActor public let nightAccentPalette = ColorPalette(isNative: true, isDark: true,
                                            tinted: true,
                                            name:"nightAccent",
                                            parent: .nightAccent,
@@ -2027,7 +2027,7 @@ public let nightAccentPalette = ColorPalette(isNative: true, isDark: true,
                                            premium: NSColor(0x6B93FF0),
                                            vibrant: NSColor(0x808080, 0.1)
 )
-public let dayClassicPalette = ColorPalette(isNative: true,
+@MainActor public let dayClassicPalette = ColorPalette(isNative: true,
                                             isDark: false,
                                             tinted: false,
                                             name:"dayClassic",
@@ -2163,7 +2163,7 @@ public let dayClassicPalette = ColorPalette(isNative: true,
                                             vibrant: NSColor(0x808080, 0.1)
 )
 
-public let darkPalette = ColorPalette(isNative: true, isDark:true,
+@MainActor public let darkPalette = ColorPalette(isNative: true, isDark:true,
                                       tinted: false,
                                       name:"Dark",
                                       parent: .dark,
@@ -2461,7 +2461,7 @@ private final class MojavePalette : ColorPalette {
     }
 }
 
-public let systemPalette: ColorPalette = {
+@MainActor public let systemPalette: ColorPalette = {
     
     let initializer: ColorPalette.Type
     if #available(macOS 10.14, *) {

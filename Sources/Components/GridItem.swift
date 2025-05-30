@@ -8,7 +8,7 @@
 
 import Cocoa
 
-public protocol GridSection {
+public protocol GridSection: Sendable {
     var height: CGFloat { get }
     var hashValue: Int { get }
     
@@ -16,7 +16,7 @@ public protocol GridSection {
     func node() -> View
 }
 
-public protocol GridItem {
+public protocol GridItem: Sendable {
     var section: GridSection? { get }
     func node(layout: GridNodeLayout, gridNode: GridNode, cachedNode: GridItemNode?) -> GridItemNode
     func update(node: GridItemNode)

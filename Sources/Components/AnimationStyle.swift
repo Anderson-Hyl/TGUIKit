@@ -8,7 +8,7 @@
 
 import Cocoa
 
-public struct AnimationStyle {
+public struct AnimationStyle: Sendable {
 
     public let duration:CFTimeInterval
     public let function:CAMediaTimingFunctionName

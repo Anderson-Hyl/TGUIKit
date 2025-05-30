@@ -52,6 +52,7 @@ open class ContextMenuItem : NSMenuItem {
         case cmdw = "⌘W"
     }
     
+    @MainActor
     open func rowItem(presentation: AppMenu.Presentation, interaction: AppMenuBasicItem.Interaction) -> TableRowItem {
         return AppMenuRowItem.init(.zero, item: self, interaction: interaction, presentation: presentation)
     }
@@ -123,7 +124,8 @@ open class ContextMenuItem : NSMenuItem {
     
     public override var title: String {
         get {
-            self.dynamicTitle?() ?? super.title
+//            self.dynamicTitle?() ?? super.title
+            super.title
         }
         set {
             super.title = newValue
@@ -149,6 +151,7 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
     let maxHeight: CGFloat
     let isLegacy: Bool
     public internal(set) var isShown: Bool = false
+    @MainActor
     public init(presentation: AppMenu.Presentation = .current(PresentationTheme.current.colors), betterInside: Bool = false, maxHeight: CGFloat = 600, isLegacy: Bool = false, bottomAnchor: Bool = false) {
         self.presentation = presentation
         self.betterInside = betterInside
@@ -185,9 +188,7 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
             return _items
         }
         set {
-            MainActor.assumeIsolated {
-                _items = newValue
-            }
+            _items = newValue
         }
     }
     
@@ -196,14 +197,11 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
             $0 as? ContextMenuItem
         }
     }
-    @MainActor
     public var onShow:(ContextMenu)->Void = {(ContextMenu) in}
-    
-    @MainActor
     public var onClose:()->Void = {() in}
         
-    @MainActor
-    public static func show(items:[ContextMenuItem], view:NSView, event:NSEvent, onShow:@escaping(ContextMenu)->Void = {_ in}, onClose:@escaping()->Void = {}, presentation: AppMenu.Presentation = .current(PresentationTheme.current.colors), isLegacy: Bool = false) -> Void {
+    
+    @MainActor public static func show(items:[ContextMenuItem], view:NSView, event:NSEvent, onShow:@escaping(ContextMenu)->Void = {_ in}, onClose:@escaping()->Void = {}, presentation: AppMenu.Presentation = .current(PresentationTheme.current.colors), isLegacy: Bool = false) -> Void {
         
         let menu = ContextMenu(presentation: presentation, isLegacy: isLegacy)
         menu.onShow = onShow
@@ -218,14 +216,9 @@ public final class ContextMenu : NSMenu, NSMenuDelegate {
     
     
     public override class func popUpContextMenu(_ menu: NSMenu, with event: NSEvent, for view: NSView) {
-        Task { @MainActor [weak menu, weak event, weak view] in
-            guard let menu, let event, let view else {
-                return
-            }
-            show(items: menu.items.compactMap {
-                $0 as? ContextMenuItem
-            }, view: view, event: event)
-        }
+        show(items: menu.items.compactMap {
+            $0 as? ContextMenuItem
+        }, view: view, event: event)
     }
     
     public func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {

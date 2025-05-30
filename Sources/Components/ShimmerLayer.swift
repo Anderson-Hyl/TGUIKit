@@ -19,7 +19,8 @@ private struct Shimmerkey : Hashable {
     }
 }
 
-private var cached:[Shimmerkey: CGImage] = [:]
+@MainActor private var cached:[Shimmerkey: CGImage] = [:]
+
 
 private final class ShimmerEffectForegroundLayer: SimpleLayer {
     private var currentBackgroundColor: NSColor?
@@ -31,6 +32,7 @@ private final class ShimmerEffectForegroundLayer: SimpleLayer {
     private var shouldBeAnimating = false
     
     fileprivate var isStatic: Bool = false
+    
     
     override init() {
         self.imageViewContainer = SimpleLayer()
@@ -52,7 +54,7 @@ private final class ShimmerEffectForegroundLayer: SimpleLayer {
         fatalError("init(coder:) has not been implemented")
     }
     
-    func update(backgroundColor: NSColor, foregroundColor: NSColor) {
+    @MainActor func update(backgroundColor: NSColor, foregroundColor: NSColor) {
         if let currentBackgroundColor = self.currentBackgroundColor, currentBackgroundColor.isEqual(backgroundColor), let currentForegroundColor = self.currentForegroundColor, currentForegroundColor.isEqual(foregroundColor) {
             return
         }
@@ -87,6 +89,7 @@ private final class ShimmerEffectForegroundLayer: SimpleLayer {
         self.imageView.contents = image
     }
     
+    @MainActor
     func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
         if let absoluteLocation = self.absoluteLocation, absoluteLocation.0 == rect && absoluteLocation.1 == containerSize {
             return
@@ -108,12 +111,13 @@ private final class ShimmerEffectForegroundLayer: SimpleLayer {
             self.imageViewContainer.frame = CGRect(origin: CGPoint(x: -rect.minX, y: -rect.minY), size: containerSize)
         }
     }
-    
+    @MainActor
     func reloadAnimation() {
         self.imageView.removeAnimation(forKey: "shimmer")
         self.addImageAnimation()
     }
     
+    @MainActor
     private func updateAnimation() {
         let shouldBeAnimating = self.absoluteLocation != nil
         if shouldBeAnimating != self.shouldBeAnimating {
@@ -126,6 +130,7 @@ private final class ShimmerEffectForegroundLayer: SimpleLayer {
         }
     }
     
+    @MainActor
     private func addImageAnimation() {
         guard let containerSize = self.absoluteLocation?.1 else {
             return
@@ -214,12 +219,12 @@ public class ShimmerLayer: SimpleLayer {
     required override init(frame frameRect: NSRect) {
         fatalError("init(frame:) has not been implemented")
     }
-    
+    @MainActor
     public func updateAbsoluteRect(_ rect: CGRect, within containerSize: CGSize) {
         self.effectView.updateAbsoluteRect(rect, within: containerSize)
     }
     
-    public func update(backgroundColor: NSColor?, foregroundColor: NSColor = NSColor(rgb: 0x748391, alpha: 0.2), shimmeringColor: NSColor = NSColor(rgb: 0x748391, alpha: 0.35), data: Data?, size: CGSize, imageSize: NSSize, cornerRadius: CGFloat? = nil) {
+    @MainActor public func update(backgroundColor: NSColor?, foregroundColor: NSColor = NSColor(rgb: 0x748391, alpha: 0.2), shimmeringColor: NSColor = NSColor(rgb: 0x748391, alpha: 0.35), data: Data?, size: CGSize, imageSize: NSSize, cornerRadius: CGFloat? = nil) {
         if self.currentData == data, let currentBackgroundColor = self.currentBackgroundColor, currentBackgroundColor.isEqual(backgroundColor), let currentForegroundColor = self.currentForegroundColor, currentForegroundColor.isEqual(foregroundColor), let currentShimmeringColor = self.currentShimmeringColor, currentShimmeringColor.isEqual(shimmeringColor), self.currentSize == size {
             return
         }

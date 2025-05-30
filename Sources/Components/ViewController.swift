@@ -7,9 +7,9 @@
 //
 
 import Foundation
-import SwiftSignalKit
 import AppKit
 import ColorPalette
+import Synchronization
 
 public final class BackgroundGradientView : View {
     public var values:(top: NSColor?, bottom: NSColor?, rotation: Int32?)? {
@@ -339,14 +339,14 @@ open class BackgroundView: View {
         }
     }
     private(set) var isCopy: Bool = false
-    override open func copy() -> Any {
-        let view = BackgroundView(frame: self.frame)
-        view.isCopy = true
-        view.backgroundMode = self.backgroundMode
-        view.useSharedAnimationPhase = true
-        view.updateLayout(size: view.frame.size, transition: .immediate)
-        return view
-    }
+//    override open func copy() -> Any {
+//        let view = BackgroundView(frame: self.frame)
+//        view.isCopy = true
+//        view.backgroundMode = self.backgroundMode
+//        view.useSharedAnimationPhase = true
+//        view.updateLayout(size: view.frame.size, transition: .immediate)
+//        return view
+//    }
     
     open func copy(_ backgroundMode: TableBackgroundMode?) -> BackgroundView {
         let view = BackgroundView(frame: self.frame)
@@ -398,11 +398,11 @@ class ControllerToasterView : Control {
         fatalError("init(coder:) has not been implemented")
     }
 }
-
+@MainActor
 public class ControllerToaster {
     let text:TextViewLayout
     var view:ControllerToasterView?
-    let disposable:MetaDisposable = MetaDisposable()
+    private var task: Task<Void, Never>?
     private let action:(()->Void)?
     private var height:CGFloat {
         return max(30, self.text.layoutSize.height + 10)
@@ -435,11 +435,11 @@ public class ControllerToaster {
         if animated {
             view?.layer?.animatePosition(from: NSMakePoint(0, -height - controller.bar.height), to: NSZeroPoint, duration: 0.2)
         }
-        
-        let signal:Signal<Void,Void> = .single(Void()) |> delay(timeout, queue: Queue.mainQueue())
-        disposable.set(signal.start(next:{ [weak self] in
+        task?.cancel()
+        task = Task { @MainActor [weak self] in
+            await delay(timeout)
             self?.hide(true)
-        }))
+        }
     }
     
     func hide(_ animated:Bool) {
@@ -451,18 +451,25 @@ public class ControllerToaster {
         } else {
             view?.removeFromSuperview()
             view = nil
-            disposable.dispose()
+            task?.cancel()
         }
     }
     
-    deinit {
+    func dispose() {
         let view = self.view
         view?.removeFromSuperview()
-        disposable.dispose()
+        task?.cancel()
     }
+    
+//    deinit {
+//        let view = self.view
+//        view?.removeFromSuperview()
+//        disposable.dispose()
+//    }
     
 }
 
+@MainActor
 open class ViewController : NSObject {
     
     
@@ -509,7 +516,7 @@ open class ViewController : NSObject {
     
     private var toaster:ControllerToaster?
     
-    public var atomicSize:Atomic<NSSize> = Atomic(value:NSZeroSize)
+    public let atomicSize: Mutex<NSSize> = .init(NSZeroSize)
     
     public var onDeinit: (()->Void)? = nil
     

@@ -100,7 +100,7 @@ private let quoteIcon: CGImage = {
 }()
 
 
-public enum LinkType {
+public enum LinkType: Sendable {
     case plain
     case email
     case username
@@ -720,9 +720,10 @@ public struct TextViewCutout: Equatable {
     }
 }
 
-private let defaultFont:NSFont = .normal(.text)
+@MainActor private let defaultFont:NSFont = .normal(.text)
 
-public final class TextViewLayout : Equatable {
+@MainActor
+public final class TextViewLayout : @preconcurrency Equatable {
     
     public final class EmbeddedItem: Equatable {
             public let range: NSRange
@@ -766,7 +767,7 @@ public final class TextViewLayout : Equatable {
     public fileprivate(set) var attributedString:NSAttributedString
     public fileprivate(set) var constrainedWidth:CGFloat = 0
     public var interactions:TextViewInteractions = TextViewInteractions()
-    public var selectedRange:TextSelectedRange
+    nonisolated(unsafe) public var selectedRange:TextSelectedRange
     public var additionalSelections:[TextSelectedRange] = []
     public var penFlush:CGFloat
     fileprivate var insets:NSSize = NSZeroSize
@@ -822,6 +823,7 @@ public final class TextViewLayout : Equatable {
     public private(set) var embeddedItems: [EmbeddedItem] = []
     public var truncatingColor: NSColor? = nil
     
+    @MainActor
     public init(_ attributedString:NSAttributedString, constrainedWidth:CGFloat = 0, maximumNumberOfLines:Int32 = INT32_MAX, truncationType: CTLineTruncationType = .end, cutout:TextViewCutout? = nil, alignment:NSTextAlignment = .left, lineSpacing:CGFloat? = nil, selectText: NSColor = presentation.colors.selectText, strokeLinks: Bool = false, alwaysStaticItems: Bool = false, disableTooltips: Bool = true, mayItems: Bool = true, spoilerColor:NSColor = presentation.colors.text, isSpoilerRevealed: Bool = false, onSpoilerReveal: @escaping()->Void = {}, truncatingColor: NSColor? = nil) {
         self.truncationType = truncationType
         self.maximumNumberOfLines = maximumNumberOfLines
@@ -919,7 +921,7 @@ public final class TextViewLayout : Equatable {
         return lines[lines.count - 1].frame.height
     }
     
-    
+    @MainActor
     func calculateLayout(isBigEmoji: Bool = false, lineSpacing: CGFloat? = nil, saveRTL: Bool = false) -> Void {
         self.isBigEmoji = isBigEmoji
         isPerfectSized = true
@@ -1613,6 +1615,7 @@ public final class TextViewLayout : Equatable {
             self.layoutSize = NSMakeSize(self.layoutSize.width, lines[lines.count - 1].frame.minY + 2)
         }
     }
+    @MainActor
     public func measure(width: CGFloat = 0, isBigEmoji: Bool = false, lineSpacing: CGFloat? = nil, saveRTL: Bool = false) -> Void {
         
         if width != 0 {
@@ -2011,6 +2014,7 @@ public final class TextViewLayout : Equatable {
         return nil
     }
     
+    @MainActor
     public func selectAll(at point:NSPoint) -> Void {
         
         let startIndex = findCharacterIndex(at: point)
@@ -2067,6 +2071,7 @@ public final class TextViewLayout : Equatable {
         
     }
     
+    @MainActor
     public func selectWord(at point:NSPoint) -> Void {
         
         if selectWholeText {
@@ -2157,23 +2162,23 @@ public final class TextViewLayout : Equatable {
 
 }
 
+@MainActor
 public func ==(lhs:TextViewLayout, rhs:TextViewLayout) -> Bool {
     return lhs.constrainedWidth == rhs.constrainedWidth && lhs.attributedString.isEqual(to: rhs.attributedString) && lhs.selectedRange == rhs.selectedRange && lhs.maximumNumberOfLines == rhs.maximumNumberOfLines && lhs.cutout == rhs.cutout && lhs.truncationType == rhs.truncationType && lhs.constrainedWidth == rhs.constrainedWidth
 }
 
-public enum CursorSelectAlignment {
+public enum CursorSelectAlignment: Sendable {
     case min(Int)
     case max(Int)
 }
 
-public struct TextSelectedRange: Equatable {
-    
-    
+
+public struct TextSelectedRange: Equatable, Sendable {
     public var range:NSRange = NSMakeRange(NSNotFound, 0)
-        
+    @MainActor
     public var color:NSColor = presentation.colors.selectText
     public var def:Bool = true
-    
+    @MainActor
     public init(range: NSRange = NSMakeRange(NSNotFound, 0), color: NSColor = presentation.colors.selectText, def: Bool = true, cursorAlignment: CursorSelectAlignment = .min(0)) {
         self.range = range
         self.color = color
@@ -2277,7 +2282,9 @@ public class TextView: Control, NSViewToolTipOwner, ViewDisplayDelegate {
     }
     
     private let menuDisposable = MetaDisposable()
+    private var menuTask: Task<Void, Never>?
     
+    nonisolated(unsafe)
     private(set) public var textLayout:TextViewLayout?
     
     private var beginSelect:NSPoint = NSZeroPoint
@@ -2850,7 +2857,8 @@ public class TextView: Control, NSViewToolTipOwner, ViewDisplayDelegate {
     }
     
     deinit {
-        menuDisposable.dispose()
+//        menuDisposable.dispose()
+        menuTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
     

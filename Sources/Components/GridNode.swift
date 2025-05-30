@@ -49,7 +49,7 @@ public struct GridNodeScrollToItem {
     }
 }
 
-public enum GridNodeLayoutType: Equatable {
+public enum GridNodeLayoutType: Equatable, Sendable {
     case fixed(itemSize: CGSize, lineSpacing: CGFloat)
     case balanced(idealHeight: CGFloat)
     
@@ -71,7 +71,7 @@ public enum GridNodeLayoutType: Equatable {
     }
 }
 
-public struct GridNodeLayout: Equatable {
+public struct GridNodeLayout: Equatable, Sendable {
     public let size: CGSize
     public let insets: NSEdgeInsets
     public let scrollIndicatorInsets: NSEdgeInsets?
@@ -229,7 +229,7 @@ private struct WrappedGridSection: Hashable {
     }
 }
 
-public struct GridNodeVisibleItems {
+public struct GridNodeVisibleItems: Sendable {
     public let top: (Int, GridItem)?
     public let bottom: (Int, GridItem)?
     public let topVisible: (Int, GridItem)?
@@ -238,15 +238,15 @@ public struct GridNodeVisibleItems {
     public let count: Int
 }
 
-private struct WrappedGridItemNode: Hashable {
+private struct WrappedGridItemNode: Hashable, Sendable {
     let node: View
-    
-    var hashValue: Int {
-        return node.hashValue
-    }
     
     static func ==(lhs: WrappedGridItemNode, rhs: WrappedGridItemNode) -> Bool {
         return lhs.node === rhs.node
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(node.hashValue)
     }
 }
 
@@ -428,46 +428,49 @@ open class GridNode: ScrollView, InteractionContentViewProtocol, AppearanceViewP
     open override func viewDidMoveToSuperview() {
         if superview != nil {
             NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: self.contentView, queue: nil, using: { [weak self] notification  in
-                if let strongSelf = self {
-                    if !strongSelf.applyingContentOffset {
-                        strongSelf.applyPresentaionLayoutTransition(strongSelf.generatePresentationLayoutTransition(layoutTransactionOffset: 0.0), removedNodes: [], updateLayoutTransition: nil, itemTransition: .immediate, completion: { _ in })
-                    }
-                    
-                    let reqCount = 1
-                    
-                    if let range = strongSelf.displayedItemRange().visibleRange {
-                        let range = NSMakeRange(range.lowerBound / strongSelf.inRowCount, range.upperBound / strongSelf.inRowCount - range.lowerBound / strongSelf.inRowCount)
-                        let scroll = strongSelf.scrollPosition()
-                        
-                        if (!strongSelf.clipView.isAnimateScrolling) {
-                            
-                            if(scroll.current.rect != strongSelf.previousScroll?.rect) {
-                                
-                                switch(scroll.current.direction) {
-                                case .top:
-                                    if(range.location <= reqCount) {
-                                        strongSelf.scrollHandler(scroll.current)
-                                        strongSelf.previousScroll = scroll.current
-                                        
-                                    }
-                                case .bottom:
-                                    if(strongSelf.rows - (range.location + range.length) <= reqCount) {
-                                        strongSelf.scrollHandler(scroll.current)
-                                        strongSelf.previousScroll = scroll.current
-                                        
-                                    }
-                                case .none:
-                                    strongSelf.scrollHandler(scroll.current)
-                                    strongSelf.previousScroll = scroll.current
-                                    
-                                }
-                            }
-                            
+                DispatchQueue.main.async {
+                    if let strongSelf = self {
+                        if !strongSelf.applyingContentOffset {
+                            strongSelf.applyPresentaionLayoutTransition(strongSelf.generatePresentationLayoutTransition(layoutTransactionOffset: 0.0), removedNodes: [], updateLayoutTransition: nil, itemTransition: .immediate, completion: { _ in })
                         }
-                    }
-                    strongSelf.reflectScrolledClipView(strongSelf.contentView)
+                        
+                        let reqCount = 1
+                        
+                        if let range = strongSelf.displayedItemRange().visibleRange {
+                            let range = NSMakeRange(range.lowerBound / strongSelf.inRowCount, range.upperBound / strongSelf.inRowCount - range.lowerBound / strongSelf.inRowCount)
+                            let scroll = strongSelf.scrollPosition()
+                            
+                            if (!strongSelf.clipView.isAnimateScrolling) {
+                                
+                                if(scroll.current.rect != strongSelf.previousScroll?.rect) {
+                                    
+                                    switch(scroll.current.direction) {
+                                    case .top:
+                                        if(range.location <= reqCount) {
+                                            strongSelf.scrollHandler(scroll.current)
+                                            strongSelf.previousScroll = scroll.current
+                                            
+                                        }
+                                    case .bottom:
+                                        if(strongSelf.rows - (range.location + range.length) <= reqCount) {
+                                            strongSelf.scrollHandler(scroll.current)
+                                            strongSelf.previousScroll = scroll.current
+                                            
+                                        }
+                                    case .none:
+                                        strongSelf.scrollHandler(scroll.current)
+                                        strongSelf.previousScroll = scroll.current
+                                        
+                                    }
+                                }
+                                
+                            }
+                        }
+                        strongSelf.reflectScrolledClipView(strongSelf.contentView)
 
+                    }
                 }
+                
                 
             })
         } else {

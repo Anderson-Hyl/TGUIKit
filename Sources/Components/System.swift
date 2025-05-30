@@ -26,6 +26,7 @@ public var mainWindow:Window {
     fatalError("window not found")
 }
 
+@MainActor
 public struct System {
 
     
@@ -100,8 +101,9 @@ public struct System {
  
 }
 
-public var uiLocalizationFunc:((String)->String)?
+@MainActor public var uiLocalizationFunc:((String)->String)?
 
+@MainActor
 public func localizedString(_ key:String) -> String {
     if let uiLocalizationFunc = uiLocalizationFunc {
         return uiLocalizationFunc(key)

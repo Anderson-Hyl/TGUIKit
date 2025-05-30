@@ -538,13 +538,13 @@ public class RadialProgressView: Control {
         }
     }
     
-    public override func copy() -> Any {
-        let view = NSView()
-        view.wantsLayer = true
-        view.frame = self.frame
-        view.layer?.contents = progressInteractiveThumb(backgroundColor: parameters.theme.backgroundColor, foregroundColor: parameters.theme.foregroundColor)
-        return view
-    }
+//    public override func copy() -> Any {
+//        let view = NSView()
+//        view.wantsLayer = true
+//        view.frame = self.frame
+//        view.layer?.contents = progressInteractiveThumb(backgroundColor: parameters.theme.backgroundColor, foregroundColor: parameters.theme.foregroundColor)
+//        return view
+//    }
     
     public override func apply(state: ControlState) {
         

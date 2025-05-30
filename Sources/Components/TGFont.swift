@@ -7,9 +7,11 @@
 //
 
 import Cocoa
+
+@MainActor
 private var caches: [FontCacheKey: NSFont] = [:]
 
-
+@MainActor
 public struct FontCacheKey : Hashable {
     enum Font : Int32 {
         case normal
@@ -82,7 +84,7 @@ public struct FontCacheKey : Hashable {
     }
 }
 
-
+@MainActor
 public func systemFont(_ size:CGFloat) ->NSFont {
     if let font = caches[.init(type: .normal, size: size)] {
         return font
@@ -90,6 +92,7 @@ public func systemFont(_ size:CGFloat) ->NSFont {
     return NSFont.systemFont(ofSize: size, weight: NSFont.Weight.regular)
 }
 
+@MainActor
 public func systemMediumFont(_ size:CGFloat) ->NSFont {
     if let font = caches[.init(type: .medium, size: size)] {
         return font
@@ -97,6 +100,7 @@ public func systemMediumFont(_ size:CGFloat) ->NSFont {
     return NSFont.systemFont(ofSize: size, weight: NSFont.Weight.semibold)
 }
 
+@MainActor
 public func systemBoldFont(_ size:CGFloat) ->NSFont {
     if let font = caches[.init(type: .bold, size: size)] {
         return font
@@ -104,6 +108,7 @@ public func systemBoldFont(_ size:CGFloat) ->NSFont {
     return NSFont.systemFont(ofSize: size, weight: NSFont.Weight.bold)
 }
 
+@MainActor
 public extension NSFont {
     
     static func normal(_ size:FontSize) ->NSFont {

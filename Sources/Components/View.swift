@@ -34,7 +34,7 @@ class ViewLayer : CALayer {
     }
 }
 
-public struct BorderType: OptionSet {
+public struct BorderType: OptionSet, Sendable {
     public var rawValue: UInt32
     
     public init(rawValue: UInt32) {
@@ -73,7 +73,8 @@ public struct BorderType: OptionSet {
     public static let Right = BorderType(rawValue: 8)
 }
 
-public protocol ViewDisplayDelegate : class {
+@MainActor
+public protocol ViewDisplayDelegate : AnyObject {
     func draw(_ layer: CALayer, in ctx: CGContext);
 }
 
@@ -88,7 +89,7 @@ public class CustomViewHandlers {
     }
 }
 
-public var viewEnableTouchBar: Bool = true
+@MainActor public var viewEnableTouchBar: Bool = true
 
 open class EventLessView : NSView {
     
@@ -186,7 +187,7 @@ open class LayerBackedView : NSView, AppearanceViewProtocol {
 }
 
 
-open class View : NSView, CALayerDelegate, AppearanceViewProtocol {
+open class View : NSView, @preconcurrency CALayerDelegate, AppearanceViewProtocol {
     
     
     public var _transformation: CATransform3D? = nil {
@@ -571,11 +572,11 @@ open class View : NSView, CALayerDelegate, AppearanceViewProtocol {
         return false
     }
     
-    open override func copy() -> Any {
-        let copy:View = View(frame:bounds)
-        copy.layer?.contents = self.layer?.contents
-        return copy
-    }
+//    open override func copy() -> Any {
+//        let copy:View = View(frame:bounds)
+//        copy.layer?.contents = self.layer?.contents
+//        return copy
+//    }
     
     
     open override func removeFromSuperview() {

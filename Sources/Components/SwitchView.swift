@@ -7,9 +7,9 @@
 //
 
 import Cocoa
-import SwiftSignalKit
 import AppKit
 
+@MainActor
 public struct SwitchViewAppearance : Equatable {
     let backgroundColor: NSColor
     let disabledColor: NSColor
@@ -30,13 +30,14 @@ public struct SwitchViewAppearance : Equatable {
     }
 }
 
+@MainActor
 public var switchViewAppearance: SwitchViewAppearance {
     return SwitchViewAppearance(backgroundColor: presentation.colors.background, stateOnColor: presentation.colors.accent, stateOffColor: presentation.colors.grayForeground, disabledColor: presentation.colors.grayTransparent, borderColor: presentation.colors.border)
 }
 
 
 public class SwitchView: Control {
-    private let disposable = MetaDisposable()
+    private var task: Task<Void, Never>?
     public var autoswitch: Bool = true
     public var presentation: SwitchViewAppearance = switchViewAppearance {
         didSet {
@@ -91,11 +92,13 @@ public class SwitchView: Control {
         
         self.set(handler: { [weak self] control in
             if let strongSelf = self {
-                strongSelf.disposable.set((Signal<Void, NoError>.single(Void()) |> delay(0.15, queue: Queue.mainQueue())).start(next: { [weak strongSelf] in
-                    if let strongSelf = strongSelf, let stateChanged = strongSelf.stateChanged, strongSelf.isEnabled  {
+                strongSelf.task?.cancel()
+                strongSelf.task = Task { [weak strongSelf] in
+                    await delay(0.15)
+                    if let strongSelf, let stateChanged = strongSelf.stateChanged, strongSelf.isEnabled  {
                         stateChanged()
                     }
-                }))
+                }
                 
                 let control = control as! SwitchView
                 let animates = control.animates
@@ -171,7 +174,7 @@ public class SwitchView: Control {
     
     
     deinit {
-        disposable.dispose()
+        task?.cancel()
     }
     
     public override func setFrameSize(_ newSize: NSSize) {
